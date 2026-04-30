@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beluga — Daily Schedule Simulator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --b1: #1565A8;
+  --b1-lt: #D6EEF7;
+  --b2: #B45309;
+  --b2-lt: #FEF3C7;
+  --b3: #0F766E;
+  --b4: #7C3AED;
+  --pcr1: #1D6B48;
+  --pcr2: #6D28D9;
+  --pcr3: #B45309;
+  --pcr4: #0369A1;
+  --idle: #E5E7EB;
+  --navy: #0F1E35;
+  --track-h: 36px;
+  --label-w: 88px;
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface2: #F1F5F9;
+  --border: #E2E8F0;
+  --text: #1E293B;
+  --text2: #64748B;
+  --text3: #94A3B8;
+  --red: #EF4444;
+  --warn-bg: #FEF3C7;
+  --warn-text: #92400E;
+  --green: #16A34A;
+  --green-bg: #F0FDF4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F172A;
+    --surface: #1E293B;
+    --surface2: #263447;
+    --border: #334155;
+    --text: #F1F5F9;
+    --text2: #94A3B8;
+    --text3: #475569;
+    --idle: #334155;
+    --warn-bg: #422006;
+    --warn-text: #FCD34D;
+    --green-bg: #052E16;
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0;
+}
+
+.header {
+  background: var(--navy);
+  padding: 20px 28px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -.01em;
+}
+.header-left p {
+  font-size: 12px;
+  color: #7BA8D4;
+  margin-top: 3px;
+}
+.header-badge {
+  background: rgba(255,255,255,.1);
+  color: #9DCFE8;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.15);
+}
+
+.main { padding: 20px 28px; max-width: 1200px; margin: 0 auto; }
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.ctrl { }
+.ctrl .ctrl-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.ctrl label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.ctrl .val {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ctrl .val span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text2);
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--navy);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  cursor: grab;
+}
+input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; }
+.ctrl .range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text3);
+  margin-top: 3px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.metric .mlabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+.metric .mval {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.metric .msub {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 1px;
+}
+.metric.highlight { background: var(--green-bg); border-color: #86EFAC; }
+.metric.highlight .mval { color: var(--green); }
+.metric.over { background: var(--warn-bg); border-color: #FCA5A5; }
+.metric.over .mval { color: var(--red); }
+
+.gantt-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  overflow-x: auto;
+}
+.gantt-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gantt-inner { min-width: 640px; }
+
+.g-header {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 6px;
+}
+.g-spacer { flex-shrink: 0; }
+.tick-area {
+  flex: 1;
+  position: relative;
+  height: 22px;
+}
+.tick {
+  position: absolute;
+  top: 0;
+  font-size: 10px;
+  color: var(--text3);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  user-select: none;
+}
+.tick-line {
+  position: absolute;
+  top: 16px;
+  width: 1px;
+  height: 6px;
+  background: var(--border);
+}
+
+.g-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.g-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-align: right;
+  padding-right: 10px;
+  line-height: 1.3;
+}
+.g-lane {
+  flex: 1;
+  position: relative;
+  height: var(--track-h);
+  background: var(--surface2);
+  border-radius: 4px;
+}
+.g-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 26px;
+  border-radius: 3px;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  cursor: default;
+}
+.g-bar:hover { opacity: .85; z-index: 10; }
+.bar-ext {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.bar-ext span, .bar-prep span {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,.95);
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-prep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid rgba(255,255,255,.25);
+  overflow: hidden;
+  opacity: .68;
+}
+.bar-wait {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 26px;
+  border-radius: 3px;
+  background: var(--idle);
+  border: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bar-wait span {
+  font-size: 9px;
+  color: var(--text3);
+}
+.bar-pcr {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 26px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: default;
+}
+.bar-pcr:hover { opacity: .85; z-index: 10; }
+.bar-pcr span {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,.95);
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.g-sep {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+.g-sep-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.g-sep-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  padding: 0 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.done-row {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+.done-track {
+  flex: 1;
+  position: relative;
+  height: 20px;
+}
+.done-vline {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--red);
+}
+.done-vlabel {
+  position: absolute;
+  top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--red);
+  white-space: nowrap;
+  padding-left: 4px;
+}
+.limit-overlay {
+  position: absolute;
+  top: 0;
+  width: 1.5px;
+  height: 100%;
+  background: rgba(239,68,68,.25);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.leg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+.leg-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.leg-swatch.dashed { border: 1px dashed var(--border); background: var(--idle); }
+
+.warning {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid #FCA5A5;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 12px;
+  display: none;
+}
+
+.footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 11px;
+  color: var(--text3);
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Beluga — Daily Schedule Simulator</h1>
+    <p>Viral RNA/DNA · NAT Testing · Drag sliders to update Gantt chart in real time</p>
+  </div>
+  <div class="header-badge">Cambrian Bioworks</div>
+</div>
+
+<div class="main">
+
+  <div class="controls-grid">
+    <div class="ctrl">
+      <div class="ctrl-top">
+        <label>Extraction time</label>
+        <div class="val"><span id="extVal">20</span> <span>min</span></div>
+      </div>
+      <input type="range" min="10" max="50" step="1" value="20" id="extSlider">
+      <div class="range-labels"><span>10 min</span><span>fast kit</span><span>50 min</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-top">
+        <label>PCR prep time</label>
+        <div class="val"><span id="prepVal">15</span> <span>min</span></div>
+      </div>
+      <input type="range" min="10" max="20" step="1" value="15" id="prepSlider">
+      <div class="range-labels"><span>10 min</span><span></span><span>20 min</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-top">
+        <label>PCR cycle time</label>
+        <div class="val"><span id="pcrVal">105</span> <span>min</span></div>
+      </div>
+      <input type="range" min="60" max="150" step="5" value="105" id="pcrSlider">
+      <div class="range-labels"><span>60 min</span><span></span><span>150 min</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-top">
+        <label>Belugas</label>
+        <div class="val"><span id="belVal">2</span> <span>instruments</span></div>
+      </div>
+      <input type="range" min="1" max="4" step="1" value="2" id="belSlider">
+      <div class="range-labels"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-top">
+        <label>PCR machines</label>
+        <div class="val"><span id="pcrMVal">2</span> <span>thermocyclers</span></div>
+      </div>
+      <input type="range" min="1" max="4" step="1" value="2" id="pcrMSlider">
+      <div class="range-labels"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-top">
+        <label>Samples / day</label>
+        <div class="val"><span id="sampVal">400</span> <span>samples</span></div>
+      </div>
+      <input type="range" min="32" max="800" step="32" value="400" id="sampSlider">
+      <div class="range-labels"><span>32</span><span></span><span>800</span></div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="mlabel">Total batches</div>
+      <div class="mval" id="mBatches">—</div>
+      <div class="msub" id="mBatchSub">—</div>
+    </div>
+    <div class="metric">
+      <div class="mlabel">Batch cycle time</div>
+      <div class="mval" id="mBatch">—</div>
+      <div class="msub">ext + PCR prep</div>
+    </div>
+    <div class="metric">
+      <div class="mlabel">Belugas done</div>
+      <div class="mval" id="mBelFinish">—</div>
+      <div class="msub" id="mBelSub">—</div>
+    </div>
+    <div class="metric">
+      <div class="mlabel">PCR done</div>
+      <div class="mval" id="mPcrFinish">—</div>
+      <div class="msub" id="mPcrSub">—</div>
+    </div>
+    <div class="metric" id="mDayCard">
+      <div class="mlabel">Day ends</div>
+      <div class="mval" id="mDayEnd">—</div>
+      <div class="msub" id="mDaySub">—</div>
+    </div>
+  </div>
+
+  <div class="gantt-card">
+    <div class="gantt-title">
+      Daily schedule — hover bars for details
+    </div>
+    <div class="gantt-inner" id="ganttInner"></div>
+    <div class="legend">
+      <div class="leg"><div class="leg-swatch" style="background:var(--b1)"></div>Beluga 1 — extraction</div>
+      <div class="leg"><div class="leg-swatch" style="background:var(--b1);opacity:.65"></div>Beluga 1 — PCR prep</div>
+      <div class="leg"><div class="leg-swatch" style="background:var(--b2)"></div>Beluga 2+</div>
+      <div class="leg"><div class="leg-swatch" style="background:var(--pcr1)"></div>PCR run (TC 1/3)</div>
+      <div class="leg"><div class="leg-swatch" style="background:var(--pcr2)"></div>PCR run (TC 2/4)</div>
+      <div class="leg"><div class="leg-swatch dashed"></div>Thermocycler idle</div>
+      <div class="leg"><div class="leg-swatch" style="background:var(--red);border-radius:1px;width:3px;height:14px;"></div>Day end / 12 hr limit</div>
+    </div>
+    <div class="warning" id="warn">
+      ⚠ Schedule exceeds 12 hours — consider adding more instruments or reducing sample count.
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Cambrian Bioworks · Beluga Sample Preparation System · CB-MKT-B-011/v1.3
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const START_MIN = 8 * 60;
+const DAY_LIMIT = 12 * 60;
+const SPB = 32;
+
+const BEL_COLORS = ['#1565A8','#B45309','#0F766E','#7C3AED'];
+const PCR_COLORS = ['#1D6B48','#6D28D9','#B45309','#0369A1'];
+
+function fmt(mins) {
+  const t = START_MIN + Math.round(mins);
+  const h = Math.floor(t / 60) % 24;
+  const m = t % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+function simulate(ext, prep, pcrCycle, nBel, nPcr, nSamp) {
+  const batchTime = ext + prep;
+  const sampPerBel = Math.ceil(nSamp / nBel);
+  const batchesPerBel = Math.ceil(sampPerBel / SPB);
+
+  const belTracks = [];
+  for (let b = 0; b < nBel; b++) {
+    const batches = [];
+    let t = 0;
+    for (let i = 0; i < batchesPerBel; i++) {
+      const s0 = b * sampPerBel + i * SPB + 1;
+      const s1 = Math.min(b * sampPerBel + (i + 1) * SPB, (b + 1) * sampPerBel);
+      batches.push({ start: t, dur: batchTime, ext, prep, s0, s1, batchNum: i + 1 });
+      t += batchTime;
+    }
+    belTracks.push({ label: 'Beluga ' + (b + 1), batches, finish: t, color: BEL_COLORS[b % 4] });
+  }
+  const belFinish = Math.max(...belTracks.map(b => b.finish));
+
+  // collect all batch endpoints to build plates
+  const batchEvents = [];
+  for (let b = 0; b < nBel; b++) {
+    for (let i = 0; i < batchesPerBel; i++) {
+      batchEvents.push({ readyAt: (i + 1) * batchTime, size: belTracks[b].batches[i].s1 - belTracks[b].batches[i].s0 + 1 });
+    }
+  }
+  batchEvents.sort((a, b) => a.readyAt - b.readyAt);
+
+  const plates = [];
+  let cur = null;
+  for (const ev of batchEvents) {
+    if (!cur) cur = { wells: 0, readyAt: ev.readyAt };
+    cur.wells += ev.size;
+    cur.readyAt = Math.max(cur.readyAt, ev.readyAt);
+    if (cur.wells >= 96) { plates.push({ ...cur }); cur = null; }
+  }
+  if (cur && cur.wells > 0) plates.push({ ...cur });
+
+  const pcrTracks = [];
+  for (let p = 0; p < nPcr; p++) pcrTracks.push({ label: 'TC ' + (p + 1), runs: [], nextFree: 0, color: PCR_COLORS[p % 4] });
+
+  for (const plate of plates) {
+    let idx = 0, earliest = Infinity;
+    for (let p = 0; p < nPcr; p++) { if (pcrTracks[p].nextFree < earliest) { earliest = pcrTracks[p].nextFree; idx = p; } }
+    const start = Math.max(plate.readyAt, pcrTracks[idx].nextFree);
+    pcrTracks[idx].runs.push({ waitStart: pcrTracks[idx].nextFree, waitDur: start - pcrTracks[idx].nextFree, start, dur: pcrCycle, wells: plate.wells });
+    pcrTracks[idx].nextFree = start + pcrCycle;
+  }
+
+  const pcrFinish = Math.max(...pcrTracks.map(p => p.nextFree));
+  const totalEnd = Math.max(belFinish, pcrFinish);
+
+  return { belTracks, pcrTracks, belFinish, pcrFinish, totalEnd, batchTime, batchesPerBel, totalBatches: batchesPerBel * nBel };
+}
+
+function render() {
+  const ext = +$('extSlider').value;
+  const prep = +$('prepSlider').value;
+  const pcrCycle = +$('pcrSlider').value;
+  const nBel = +$('belSlider').value;
+  const nPcr = +$('pcrMSlider').value;
+  const nSamp = +$('sampSlider').value;
+
+  $('extVal').textContent = ext;
+  $('prepVal').textContent = prep;
+  $('pcrVal').textContent = pcrCycle;
+  $('belVal').textContent = nBel;
+  $('pcrMVal').textContent = nPcr;
+  $('sampVal').textContent = nSamp;
+
+  const S = simulate(ext, prep, pcrCycle, nBel, nPcr, nSamp);
+
+  $('mBatches').textContent = S.totalBatches;
+  $('mBatchSub').textContent = S.batchesPerBel + ' per Beluga';
+  $('mBatch').textContent = S.batchTime + ' min';
+  $('mBelFinish').textContent = fmt(S.belFinish);
+  $('mBelSub').textContent = Math.round(S.belFinish) + ' min from start';
+  $('mPcrFinish').textContent = fmt(S.pcrFinish);
+  $('mPcrSub').textContent = Math.round(S.pcrFinish) + ' min from start';
+  $('mDayEnd').textContent = fmt(S.totalEnd);
+
+  const over = S.totalEnd > DAY_LIMIT;
+  $('warn').style.display = over ? 'block' : 'none';
+  const card = $('mDayCard');
+  card.className = 'metric ' + (over ? 'over' : S.totalEnd < DAY_LIMIT * 0.85 ? 'highlight' : '');
+  $('mDaySub').textContent = over ? (Math.round(S.totalEnd - DAY_LIMIT) + ' min over limit') : (Math.round(DAY_LIMIT - S.totalEnd) + ' min spare');
+
+  const LABEL_W = 88;
+  const totalMins = Math.max(S.totalEnd + 45, 180);
+  const tickStep = totalMins > 540 ? 60 : totalMins > 270 ? 30 : 15;
+
+  const gi = $('ganttInner');
+  gi.innerHTML = '';
+
+  // Tick header
+  const hdr = el('div', `display:flex;align-items:flex-end;margin-bottom:6px;`);
+  hdr.appendChild(el('div', `width:${LABEL_W}px;flex-shrink:0;`));
+  const tickArea = el('div', `flex:1;position:relative;height:22px;`);
+  for (let t = 0; t <= totalMins; t += tickStep) {
+    const pct = (t / totalMins) * 100;
+    const tk = el('div', `position:absolute;left:${pct}%;top:0;font-size:10px;color:var(--text3);transform:translateX(-50%);white-space:nowrap;user-select:none;`);
+    tk.textContent = fmt(t);
+    tickArea.appendChild(tk);
+    const tl = el('div', `position:absolute;left:${pct}%;top:16px;width:1px;height:6px;background:var(--border);`);
+    tickArea.appendChild(tl);
+  }
+  hdr.appendChild(tickArea);
+  gi.appendChild(hdr);
+
+  // Beluga rows
+  const belSep = el('div', `display:flex;align-items:center;margin:6px 0;`);
+  belSep.innerHTML = `<div style="width:${LABEL_W}px;flex-shrink:0;"></div><div style="flex:1;display:flex;align-items:center;gap:8px;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="font-size:10px;font-weight:600;color:var(--text3);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;">Extraction</span><div style="flex:1;height:1px;background:var(--border);"></div></div>`;
+  gi.appendChild(belSep);
+
+  for (const bt of S.belTracks) {
+    const row = el('div', `display:flex;align-items:center;margin-bottom:5px;`);
+    const lbl = el('div', `width:${LABEL_W}px;flex-shrink:0;font-size:11px;font-weight:600;color:var(--text2);text-align:right;padding-right:10px;line-height:1.3;`);
+    lbl.textContent = bt.label;
+    row.appendChild(lbl);
+
+    const lane = el('div', `flex:1;position:relative;height:var(--track-h);background:var(--surface2);border-radius:4px;`);
+    addLimitLine(lane, totalMins);
+
+    for (const batch of bt.batches) {
+      const L = (batch.start / totalMins) * 100;
+      const W = (batch.dur / totalMins) * 100;
+      const bar = el('div', `position:absolute;left:${L}%;width:${W}%;top:50%;transform:translateY(-50%);height:26px;border-radius:3px;background:${bt.color};display:flex;align-items:stretch;overflow:hidden;cursor:default;`);
+      bar.title = `Beluga ${bt.batches.indexOf(batch)+1} · Samples ${batch.s0}–${batch.s1}\n${fmt(batch.start)} → ${fmt(batch.start + batch.dur)}\nExt: ${batch.ext} min · Prep: ${batch.prep} min`;
+
+      const extW = (batch.ext / batch.dur) * 100;
+      const prepW = (batch.prep / batch.dur) * 100;
+
+      const extP = el('div', `flex:${extW};background:${bt.color};display:flex;align-items:center;justify-content:center;overflow:hidden;`);
+      extP.innerHTML = `<span style="font-size:10px;font-weight:600;color:rgba(255,255,255,.95);padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ext</span>`;
+
+      const prepP = el('div', `flex:${prepW};background:${bt.color};opacity:.65;display:flex;align-items:center;justify-content:center;border-left:1px solid rgba(255,255,255,.25);overflow:hidden;`);
+      prepP.innerHTML = `<span style="font-size:10px;color:rgba(255,255,255,.9);padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Prep</span>`;
+
+      bar.appendChild(extP);
+      bar.appendChild(prepP);
+      lane.appendChild(bar);
+    }
+    row.appendChild(lane);
+    gi.appendChild(row);
+  }
+
+  // PCR rows
+  const pcrSep = el('div', `display:flex;align-items:center;margin:8px 0 6px;`);
+  pcrSep.innerHTML = `<div style="width:${LABEL_W}px;flex-shrink:0;"></div><div style="flex:1;display:flex;align-items:center;gap:8px;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="font-size:10px;font-weight:600;color:var(--text3);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;">PCR thermocyclers</span><div style="flex:1;height:1px;background:var(--border);"></div></div>`;
+  gi.appendChild(pcrSep);
+
+  for (const pt of S.pcrTracks) {
+    const row = el('div', `display:flex;align-items:center;margin-bottom:5px;`);
+    const lbl = el('div', `width:${LABEL_W}px;flex-shrink:0;font-size:11px;font-weight:600;color:var(--text2);text-align:right;padding-right:10px;`);
+    lbl.textContent = pt.label;
+    row.appendChild(lbl);
+
+    const lane = el('div', `flex:1;position:relative;height:var(--track-h);background:var(--surface2);border-radius:4px;`);
+    addLimitLine(lane, totalMins);
+
+    for (const run of pt.runs) {
+      if (run.waitDur > 1 && run.waitStart > 0) {
+        const wL = (run.waitStart / totalMins) * 100;
+        const wW = (run.waitDur / totalMins) * 100;
+        const wb = el('div', `position:absolute;left:${wL}%;width:${wW}%;top:50%;transform:translateY(-50%);height:26px;border-radius:3px;background:var(--idle);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;`);
+        if (run.waitDur > 8) wb.innerHTML = `<span style="font-size:9px;color:var(--text3);padding:0 4px;">waiting</span>`;
+        lane.appendChild(wb);
+      }
+      const L = (run.start / totalMins) * 100;
+      const W = (run.dur / totalMins) * 100;
+      const bar = el('div', `position:absolute;left:${L}%;width:${W}%;top:50%;transform:translateY(-50%);height:26px;border-radius:3px;background:${pt.color};display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:default;`);
+      bar.title = `${pt.label}\n${run.wells} samples\n${fmt(run.start)} → ${fmt(run.start + run.dur)}\nDuration: ${run.dur} min`;
+      if (W > 2) bar.innerHTML = `<span style="font-size:10px;font-weight:500;color:rgba(255,255,255,.95);padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${run.wells} samp · done ${fmt(run.start + run.dur)}</span>`;
+      lane.appendChild(bar);
+    }
+    row.appendChild(lane);
+    gi.appendChild(row);
+  }
+
+  // Done line row
+  const doneRow = el('div', `display:flex;align-items:center;margin-top:6px;`);
+  doneRow.appendChild(el('div', `width:${LABEL_W}px;flex-shrink:0;`));
+  const doneTrack = el('div', `flex:1;position:relative;height:20px;`);
+  const donePct = Math.min((S.totalEnd / totalMins) * 100, 99);
+  const vline = el('div', `position:absolute;left:${donePct}%;top:0;width:2px;height:100%;background:var(--red);`);
+  const vlabel = el('div', `position:absolute;top:3px;font-size:11px;font-weight:600;color:var(--red);white-space:nowrap;`);
+  vlabel.style.left = `calc(${donePct}% + 4px)`;
+  vlabel.textContent = 'Done ' + fmt(S.totalEnd);
+  doneTrack.appendChild(vline);
+  doneTrack.appendChild(vlabel);
+  doneRow.appendChild(doneTrack);
+  gi.appendChild(doneRow);
+}
+
+function el(tag, style) {
+  const e = document.createElement(tag);
+  if (style) e.style.cssText = style;
+  return e;
+}
+
+function addLimitLine(lane, totalMins) {
+  const pct = (DAY_LIMIT / totalMins) * 100;
+  if (pct <= 100) {
+    const line = el('div', `position:absolute;left:${pct}%;top:0;height:100%;width:1.5px;background:rgba(239,68,68,.3);z-index:2;pointer-events:none;`);
+    lane.appendChild(line);
+  }
+}
+
+['extSlider','prepSlider','pcrSlider','belSlider','pcrMSlider','sampSlider'].forEach(id => {
+  $(id).addEventListener('input', render);
+});
+
+render();
+</script>
+</body>
+</html>
